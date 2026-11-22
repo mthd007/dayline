@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- faint track -->
+    <path
+        android:pathData="M54,24 A30,30 0 1,1 53.99,24"
+        android:strokeColor="#FF2A2F3C"
+        android:strokeWidth="9"
+        android:fillColor="#00000000" />
+    <!-- 3 event arcs on the 24h ring -->
+    <path
+        android:pathData="M54,24 A30,30 0 0,1 80,39"
+        android:strokeColor="#FF7C9CFF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M83.5,60 A30,30 0 0,1 66,80.5"
+        android:strokeColor="#FF5EE0B5"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M42,80.5 A30,30 0 0,1 24.5,60"
+        android:strokeColor="#FFFFB86B"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

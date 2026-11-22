@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_widget_description">Today at a glance: the date, what is on now or next.</string>
+    <string name="agenda_widget_description">Your next events over the coming days.</string>
+</resources>
