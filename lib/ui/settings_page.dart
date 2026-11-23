@@ -98,12 +98,45 @@ class SettingsPage extends StatelessWidget {
                       label: const Text('Send a test notification'),
                       onPressed: () async {
                         final messenger = ScaffoldMessenger.of(context);
-                        final ok = await scope.notifier.showTest();
+                        final err = await scope.notifier.showTest();
                         messenger.showSnackBar(SnackBar(
-                          content: Text(ok
+                          content: Text(err == null
                               ? 'Sent. If you did not see it, check the system notification settings.'
-                              : 'Notifications are not available right now.'),
+                              : 'Could not send: $err'),
                         ));
+                      },
+                    ),
+                    if (Platform.isAndroid) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.alarm_outlined),
+                        label: const Text('Schedule a test in 1 minute'),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final err = await scope.notifier.scheduleTest();
+                          messenger.showSnackBar(SnackBar(
+                            content: Text(err == null
+                                ? 'Scheduled. Close the app and wait one minute.'
+                                : 'Could not schedule: $err'),
+                          ));
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.fact_check_outlined),
+                      label: const Text('Check reminders'),
+                      onPressed: () async {
+                        final report = await scope.notifier.diagnose();
+                        if (!context.mounted) return;
+                        await showDialog<void>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Reminder check'),
+                            content: SelectableText(report),
+                            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+                          ),
+                        );
                       },
                     ),
                   ],
