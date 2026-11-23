@@ -56,6 +56,8 @@ class Notifier with WidgetsBindingObserver {
   );
 
   bool _ready = false;
+  String? _initError;
+  String? _lastError;
   bool _busy = false;
   bool _again = false;
   Timer? _debounce;
@@ -83,6 +85,7 @@ class Notifier with WidgetsBindingObserver {
       );
       _ready = true;
     } catch (e) {
+      _initError = '$e';
       debugPrint('Notifications unavailable: $e');
     }
   }
@@ -125,9 +128,9 @@ class Notifier with WidgetsBindingObserver {
     _debounce = Timer(const Duration(milliseconds: 700), _refresh);
   }
 
-  /// Shows a notification right now (used by the "Send test notification" button).
-  Future<bool> showTest() async {
-    if (!_ready) return false;
+  /// Shows a notification right now. Returns null on success, otherwise the reason it failed.
+  Future<String?> showTest() async {
+    if (!_ready) return 'Notifications could not start: ${_initError ?? 'unknown reason'}';
     try {
       await _plugin.show(
         id: 999999,
@@ -135,11 +138,70 @@ class Notifier with WidgetsBindingObserver {
         body: 'Reminders are working.',
         notificationDetails: _details,
       );
-      return true;
+      return null;
     } catch (e) {
       debugPrint('Test notification failed: $e');
-      return false;
+      return '$e';
     }
+  }
+
+  /// Schedules a notification through the same alarm path real reminders use.
+  /// Returns null on success, otherwise the reason it failed.
+  Future<String?> scheduleTest({int seconds = 60}) async {
+    if (!_ready) return 'Notifications could not start: ${_initError ?? 'unknown reason'}';
+    final u = DateTime.now().toUtc().add(Duration(seconds: seconds));
+    final when = tz.TZDateTime.utc(u.year, u.month, u.day, u.hour, u.minute, u.second);
+    Future<void> go(AndroidScheduleMode mode) => _plugin.zonedSchedule(
+          id: 999998,
+          title: 'Dayline',
+          body: 'Scheduled reminders are working.',
+          scheduledDate: when,
+          notificationDetails: _details,
+          androidScheduleMode: mode,
+        );
+    try {
+      try {
+        await go(AndroidScheduleMode.exactAllowWhileIdle);
+      } on PlatformException {
+        await go(AndroidScheduleMode.inexactAllowWhileIdle);
+      }
+      return null;
+    } catch (e) {
+      return '$e';
+    }
+  }
+
+  /// Plain-language state of the reminder system, for the "Check reminders" screen.
+  Future<String> diagnose() async {
+    final b = StringBuffer();
+    if (!_ready) {
+      b.writeln('Notification service: NOT running (${_initError ?? 'unknown reason'})');
+    } else {
+      b.writeln('Notification service: running');
+      if (Platform.isAndroid) {
+        final a = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        try {
+          b.writeln('Notifications allowed: ${await a?.areNotificationsEnabled()}');
+        } catch (e) {
+          b.writeln('Notifications allowed: unknown ($e)');
+        }
+        try {
+          b.writeln('Exact alarms allowed: ${await a?.canScheduleExactNotifications()}');
+        } catch (e) {
+          b.writeln('Exact alarms allowed: unknown ($e)');
+        }
+        try {
+          final pending = await _plugin.pendingNotificationRequests();
+          b.writeln('Reminders waiting to fire: ${pending.where((p) => p.id >= 1000000).length}');
+        } catch (e) {
+          b.writeln('Reminders waiting to fire: unknown ($e)');
+        }
+      }
+    }
+    b.writeln('Events stored: ${_store.events.length}');
+    b.writeln('Events with reminders: ${_store.events.where((e) => e.reminders.isNotEmpty).length}');
+    if (_lastError != null) b.writeln('Last problem: $_lastError');
+    return b.toString().trim();
   }
 
   // ---- refresh -----------------------------------------------------------
@@ -257,16 +319,19 @@ class Notifier with WidgetsBindingObserver {
           await scheduleOne(d, id);
         } catch (e) {
           wanted.remove(id);
+          _lastError = '$e';
           debugPrint('Skipping one reminder: $e');
         }
       }
 
-      // Drop pending reminders whose event or reminder no longer exists.
+      // Drop pending reminders whose event or reminder no longer exists
+      // (ids below 1000000 are the test notifications and are left alone).
       final pending = await _plugin.pendingNotificationRequests();
       for (final p in pending) {
-        if (!wanted.contains(p.id)) await _plugin.cancel(id: p.id);
+        if (p.id >= 1000000 && !wanted.contains(p.id)) await _plugin.cancel(id: p.id);
       }
     } catch (e) {
+      _lastError = '$e';
       debugPrint('Scheduling reminders failed: $e');
     }
   }
